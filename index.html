@@ -197,18 +197,27 @@ const frameForwardBtn = document.getElementById("frameForwardBtn");
 const cameraSelect = document.getElementById("cameraSelect");
 let devices = []; // lista de cámaras
 
+let stream = null; // ⬅️ Mover arriba
+
 async function listCameras() {
     try {
+        // Siempre pedir permiso primero
+        await navigator.mediaDevices.getUserMedia({ video: true });
+
         const allDevices = await navigator.mediaDevices.enumerateDevices();
         devices = allDevices.filter(d => d.kind === "videoinput");
+
         cameraSelect.innerHTML = "";
         devices.forEach((d, i) => {
             const option = document.createElement("option");
             option.value = d.deviceId;
-            option.textContent = d.label || `Cámara ${i+1}`;
+            option.textContent = d.label || `Cámara ${i + 1}`;
             cameraSelect.appendChild(option);
         });
-    } catch(e) {
+
+        if (devices.length > 0) cameraSelect.value = devices[0].deviceId;
+
+    } catch (e) {
         console.warn("No se pudieron listar las cámaras:", e);
     }
 }
@@ -232,7 +241,7 @@ crossSize.oninput = updateCrosshair;
 updateCrosshair();
 
 /* ===== ESTADO ===== */
-let stream = null, recorder = null, chunks = [], recording = false;
+let recorder = null, chunks = [], recording = false;
 let diffs = [], smoothDiffs = [], maxDiff = 1, peakIndex = 0;
 let sensitivity = 1;
 let lastLum = null, lastColor = null;
@@ -332,29 +341,17 @@ frameBackBtn.onclick    = () => frameStep(-1);
 frameForwardBtn.onclick = () => frameStep(1);
 
 /* ===== WEBCAM ===== */
-camBtn.onclick = async () => {
+cameraSelect.onchange = async () => {
     if (stream) {
         stream.getTracks().forEach(t => t.stop());
         camVideo.srcObject = null;
-        stream = null;
-        camBtn.style.background = "";
-        return;
     }
 
     const selectedDeviceId = cameraSelect.value;
-
-    try {
-        stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined } 
-        });
-        camVideo.srcObject = stream;
-        camBtn.style.background = "orange";
-
-        // En móviles, actualizar lista de cámaras tras permiso
-        listCameras();
-    } catch (e) {
-        alert("No se pudo acceder a la cámara: " + e.message);
-    }
+    stream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: selectedDeviceId } }
+    });
+    camVideo.srcObject = stream;
 };
 
 /* ===== GRABACIÓN ===== */
