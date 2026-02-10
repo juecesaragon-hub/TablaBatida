@@ -137,6 +137,8 @@ select{height:32px}
   <input id="crossSize" type="range" min="1" max="5" value="2">
   <span id="crossSizeVal">2 px</span>
 
+<!-- Selector de cámara -->
+<select id="videoSelect" style="height:32px;"></select>
   <button id="camBtn" class="control-btn">📷</button>
   <button id="recBtn" class="control-btn">⏺</button>
 <span id="counterDisplay" title="Próximo video"
@@ -308,21 +310,69 @@ frameForwardBtn.onclick = () => frameStep(1);
 
 /* ===== WEBCAM ===== */
 camBtn.onclick = async () => {
+const videoSelect = document.getElementById("videoSelect");
+
+// Listar todas las cámaras disponibles
+async function listarCamaras() {
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === "videoinput");
+
+        videoSelect.innerHTML = ""; // limpiar
+        videoDevices.forEach((device, i) => {
+            const opt = document.createElement("option");
+            opt.value = device.deviceId;
+            opt.textContent = device.label || `Cámara ${i + 1}`;
+            videoSelect.appendChild(opt);
+        });
+
+        // Seleccionar la primera por defecto
+        if (videoDevices.length > 0) videoSelect.value = videoDevices[0].deviceId;
+    } catch (err) {
+        console.error("Error listando cámaras:", err);
+    }
+}
+
+// Iniciar cámara seleccionada
+async function startCamera(deviceId = null) {
     if (stream) {
         stream.getTracks().forEach(t => t.stop());
         camVideo.srcObject = null;
         stream = null;
         camBtn.style.background = "";
-        return;
     }
+
+    const constraints = deviceId 
+        ? { video: { deviceId: { exact: deviceId } } } 
+        : { video: true };
+
     try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
         camVideo.srcObject = stream;
         camBtn.style.background = "orange";
-    } catch (e) {
-        alert("No se pudo acceder a la cámara");
+    } catch (err) {
+        alert("No se pudo acceder a la cámara: " + err.message);
+        camBtn.style.background = "";
+    }
+}
+
+// Botón de activación/desactivación de cámara
+camBtn.onclick = () => {
+    if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        camVideo.srcObject = null;
+        stream = null;
+        camBtn.style.background = "";
+    } else {
+        startCamera(videoSelect.value);
     }
 };
+
+// Cambiar cámara desde el selector
+videoSelect.onchange = () => startCamera(videoSelect.value);
+
+// Inicializar lista de cámaras al cargar la página
+listarCamaras();
 
 /* ===== GRABACIÓN ===== */
 let recStart, recTimer;
