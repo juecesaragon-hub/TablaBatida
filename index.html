@@ -248,20 +248,35 @@ resetCounterBtn.onclick = () => {
 
 /* ===== LISTAR CAMARAS DISPONIBLES ===== */
 async function listarCamaras() {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const videoDevices = devices.filter(d => d.kind === "videoinput");
-
     const cameraSelect = document.getElementById("cameraSelect");
     cameraSelect.innerHTML = "";
 
-    videoDevices.forEach((device, index) => {
-        const option = document.createElement("option");
-        option.value = device.deviceId;
-        option.text = device.label || `Cámara ${index + 1}`;
-        cameraSelect.appendChild(option);
-    });
+    // En móviles, detectamos solo frontal y trasera
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoDevices = devices.filter(d => d.kind === "videoinput");
+
+    if (videoDevices.length <= 2) {
+        // Asumimos mobile
+        const front = document.createElement("option");
+        front.value = "user";
+        front.text = "Cámara frontal";
+        cameraSelect.appendChild(front);
+
+        const back = document.createElement("option");
+        back.value = "environment";
+        back.text = "Cámara trasera";
+        cameraSelect.appendChild(back);
+    } else {
+        // PC / Laptop
+        videoDevices.forEach((device, index) => {
+            const option = document.createElement("option");
+            option.value = device.deviceId;
+            option.text = device.label || `Cámara ${index + 1}`;
+            cameraSelect.appendChild(option);
+        });
+    }
 }
-listarCamaras(); // Llama a la función al inicio
+listarCamaras();
 
 /* ===== ANALIZADOR EN VIVO ===== */
 let liveCanvas = document.createElement("canvas");
@@ -343,11 +358,17 @@ camBtn.onclick = async () => {
         }
 
         const selectedCameraId = document.getElementById("cameraSelect").value;
+const selectedCameraId = cameraSelect.value;
+let constraints = {};
 
-        stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { deviceId: selectedCameraId ? { exact: selectedCameraId } : undefined } 
-        });
-        camVideo.srcObject = stream;
+if (selectedCameraId === "user" || selectedCameraId === "environment") {
+    constraints.video = { facingMode: selectedCameraId };
+} else {
+    constraints.video = { deviceId: { exact: selectedCameraId } };
+}
+
+stream = await navigator.mediaDevices.getUserMedia(constraints);
+camVideo.srcObject = stream;
 
         camBtn.style.background = "orange";
     } catch (err) {
