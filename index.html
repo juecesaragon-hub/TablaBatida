@@ -137,9 +137,6 @@ select{height:32px}
   <input id="crossSize" type="range" min="1" max="5" value="2">
   <span id="crossSizeVal">2 px</span>
 
-<label for="cameraSelect">Cámara:</label>
-<select id="cameraSelect"></select>
-
   <button id="camBtn" class="control-btn">📷</button>
   <button id="recBtn" class="control-btn">⏺</button>
 <span id="counterDisplay" title="Próximo video"
@@ -246,38 +243,6 @@ resetCounterBtn.onclick = () => {
     }
 };
 
-/* ===== LISTAR CAMARAS DISPONIBLES ===== */
-async function listarCamaras() {
-    const cameraSelect = document.getElementById("cameraSelect");
-    cameraSelect.innerHTML = "";
-
-    // En móviles, detectamos solo frontal y trasera
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const videoDevices = devices.filter(d => d.kind === "videoinput");
-
-    if (videoDevices.length <= 2) {
-        // Asumimos mobile
-        const front = document.createElement("option");
-        front.value = "user";
-        front.text = "Cámara frontal";
-        cameraSelect.appendChild(front);
-
-        const back = document.createElement("option");
-        back.value = "environment";
-        back.text = "Cámara trasera";
-        cameraSelect.appendChild(back);
-    } else {
-        // PC / Laptop
-        videoDevices.forEach((device, index) => {
-            const option = document.createElement("option");
-            option.value = device.deviceId;
-            option.text = device.label || `Cámara ${index + 1}`;
-            cameraSelect.appendChild(option);
-        });
-    }
-}
-listarCamaras();
-
 /* ===== ANALIZADOR EN VIVO ===== */
 let liveCanvas = document.createElement("canvas");
 liveCanvas.width = 96; liveCanvas.height = 54;
@@ -347,30 +312,25 @@ frameBackBtn.onclick    = () => frameStep(-1);
 frameForwardBtn.onclick = () => frameStep(1);
 
 /* ===== WEBCAM ===== */
+/* ===== WEBCAM ===== */
 camBtn.onclick = async () => {
     try {
+        // Si ya hay un stream, lo cerramos
         if (stream) {
             stream.getTracks().forEach(t => t.stop());
             camVideo.srcObject = null;
             stream = null;
-            camBtn.style.background = "";
+            camBtn.style.background = ""; // Volver al color original
             return;
         }
 
-        const selectedCameraId = document.getElementById("cameraSelect").value;
-const selectedCameraId = cameraSelect.value;
-let constraints = {};
+        // Solicita permiso y obtiene la cámara por defecto
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        camVideo.srcObject = stream;
 
-if (selectedCameraId === "user" || selectedCameraId === "environment") {
-    constraints.video = { facingMode: selectedCameraId };
-} else {
-    constraints.video = { deviceId: { exact: selectedCameraId } };
-}
-
-stream = await navigator.mediaDevices.getUserMedia(constraints);
-camVideo.srcObject = stream;
-
+        // Cambiar el color del botón a naranja al activarse
         camBtn.style.background = "orange";
+
     } catch (err) {
         alert("No se pudo acceder a la cámara: " + err.message);
         console.error(err);
