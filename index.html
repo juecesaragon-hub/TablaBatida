@@ -137,9 +137,6 @@ select{height:32px}
   <input id="crossSize" type="range" min="1" max="5" value="2">
   <span id="crossSizeVal">2 px</span>
 
-<span>| Cámara</span>
-<select id="cameraSelect"></select>
-
   <button id="camBtn" class="control-btn">📷</button>
   <button id="recBtn" class="control-btn">⏺</button>
 <span id="counterDisplay" title="Próximo video"
@@ -198,32 +195,6 @@ const cameraSelect = document.getElementById("cameraSelect");
 let devices = []; // lista de cámaras
 
 let stream = null; // ⬅️ Mover arriba
-
-async function listCameras() {
-    try {
-        // Siempre pedir permiso primero
-        await navigator.mediaDevices.getUserMedia({ video: true });
-
-        const allDevices = await navigator.mediaDevices.enumerateDevices();
-        devices = allDevices.filter(d => d.kind === "videoinput");
-
-        cameraSelect.innerHTML = "";
-        devices.forEach((d, i) => {
-            const option = document.createElement("option");
-            option.value = d.deviceId;
-            option.textContent = d.label || `Cámara ${i + 1}`;
-            cameraSelect.appendChild(option);
-        });
-
-        if (devices.length > 0) cameraSelect.value = devices[0].deviceId;
-
-    } catch (e) {
-        console.warn("No se pudieron listar las cámaras:", e);
-    }
-}
-
-// Llamar al cargar la página
-listCameras();
 
 /* ===== CRUCETA ===== */
 const crosshair = document.querySelector(".crosshair");
@@ -341,17 +312,29 @@ frameBackBtn.onclick    = () => frameStep(-1);
 frameForwardBtn.onclick = () => frameStep(1);
 
 /* ===== WEBCAM ===== */
-cameraSelect.onchange = async () => {
-    if (stream) {
-        stream.getTracks().forEach(t => t.stop());
-        camVideo.srcObject = null;
-    }
+/* ===== WEBCAM ===== */
+camBtn.onclick = async () => {
+    try {
+        // Si ya hay un stream, lo cerramos
+        if (stream) {
+            stream.getTracks().forEach(t => t.stop());
+            camVideo.srcObject = null;
+            stream = null;
+            camBtn.style.background = ""; // Volver al color original
+            return;
+        }
 
-    const selectedDeviceId = cameraSelect.value;
-    stream = await navigator.mediaDevices.getUserMedia({
-        video: { deviceId: { exact: selectedDeviceId } }
-    });
-    camVideo.srcObject = stream;
+        // Solicita permiso y obtiene la cámara por defecto
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        camVideo.srcObject = stream;
+
+        // Cambiar el color del botón a naranja al activarse
+        camBtn.style.background = "orange";
+
+    } catch (err) {
+        alert("No se pudo acceder a la cámara: " + err.message);
+        console.error(err);
+    }
 };
 
 /* ===== GRABACIÓN ===== */
@@ -432,8 +415,10 @@ function stopRec() {
     stopLiveAnalysis();
     recTimeBox.style.display = "none";
     recBtn.style.background = "";
-    counterDisplay.style.color = "#333"; // ✅ volver al color original
+    counterDisplay.style.color = "#333"; // volver al color original
     autoFollow = false;
+
+    // ❌ No detener la cámara aquí
 }
 
 /* ===== BOTÓN PRINCIPAL DE GUARDAR ===== */
